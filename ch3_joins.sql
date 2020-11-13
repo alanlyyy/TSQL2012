@@ -251,6 +251,7 @@ ORDER by C.custid ASC;
 --to create a virtual table
 -- I perform an inner join to combine the virtual table with Sales.OrderDetails on orderid
 -- I return only overlapping rows that contain the same orderid in both tables.
+USE TSQL2012;
 SELECT C.custid, O.orderid, OD.productid, OD.qty
 FROM Sales.Customers AS C
 	LEFT OUTER JOIN Sales.Orders AS O
@@ -282,3 +283,61 @@ FROM Sales.Customers AS C
 -- using the 2 outer joins we preserved the null values from the first join.
 -- using outer join and then inner join dropped the null values from the outer join.
 
+
+-- I want to display custid from Sales.Customers table
+-- orderid from Sales.Order table
+-- productid and qty from Sales.OrderDetails table
+-- So I query all rows from Sales.Orders table.
+-- I combine Order Details and Orders using the orderid as an intersection nxm rows
+-- I preserve Sales.Customers and combine the virtual table with Sales.Customers on custid.
+SELECT C.custid, O.orderid, OD.productid, OD.qty
+FROM Sales.Orders AS O
+JOIN  Sales.OrderDetails AS OD
+ON O.orderid = OD.orderid
+RIGHT OUTER JOIN Sales.Customers AS C
+ON O.custid = C.custid;
+
+--Using parenthesis for joins as independent logical phase.
+
+-- I want to display custid from Sales.Customers table
+-- display orderid from Sales.Orders table
+-- display productid and qty from Sales.OrderDetails table 
+-- I query rows and preserve Sales.Customers table
+-- I combine Sales.Customers with virtual table on custid
+-- The virtual table, is the intersection of Sales.Orders and Sales.OrderDetails
+-- using orderid
+SELECT C.custid, O.orderid, OD.productid, OD.qty
+FROM Sales.Customers AS C
+LEFT OUTER JOIN 
+	(Sales.Orders AS O
+	INNER JOIN Sales.OrderDetails AS OD
+	ON O.orderid = OD.orderid )
+ON C.custid = O.custid;
+
+--USING the count aggregate with outer joins
+-- I want to display custid from Sales.Customers
+-- and count the of the rows for each custid
+-- So I query all rows and preserve Sales.Customers
+-- I combine Sales.Customers with Sales.Orders usin custid
+-- I aggregate the rows by custid
+SELECT C.custid, COUNT(*) AS numorders
+FROM Sales.Customers AS C
+LEFT OUTER JOIN Sales.Orders AS O
+ON C.custid = O.custid
+GROUP BY C.custid;
+--The output is incorrect because the aggregate function
+--includes counts of customers 22 and 57 that did not place orders.
+--The result of outer join creates null columns that count incorrectly counts.
+
+--Dont use COUNT(*) use COUNT(<column_name>) when using outer join.
+
+-- I want to display custid, and aggregated count of orderid 
+-- So I query from and preserve Sales.Customers table
+-- I combine Sales.Orders with Sales.Customers using custid 
+-- I aggregate rows using custid
+SELECT C.custid, COUNT(O.orderid) AS numorders
+FROM Sales.Customers AS C
+LEFT OUTER JOIN Sales.Orders AS O
+ON C.custid = O.custid
+GROUP BY C.custid;
+-- correctly display counts for 22 and 57, counts = 0
