@@ -121,3 +121,64 @@ WHERE orderid = (SELECT MAX(O2.orderid)
 				WHERE O2.custid = O1.custid);
 
 --p.137 165/442
+
+
+-- I want to display orderid, custid, and val, and pct 
+-- pct is a percentage calculated from each row of O1.val
+-- subquery: get the current O1.custid from the current row, if the current rows O1.custid = O2.custid
+-- sum all rows of O2.val that contain the current custid.
+-- return results from Sales.OrderValues table
+-- sort by custid, orderid ASC
+USE TSQL2012;
+SELECT orderid, custid, val,
+	CAST( 100. *val / (SELECT SUM(O2.val)
+						FROM Sales.OrderValues AS O2
+						WHERE O2.custid = O1.custid)
+			AS NUMERIC(5,2)) AS pct
+FROM Sales.OrderValues AS O1
+ORDER BY custid, orderid;
+
+--Exists Predicate
+
+-- I want to display custid and companyname from Sales.Customers table
+-- I filter for rows where country = Spain
+-- and for each row, we check the custid from Sales.Customers table if the custid is in the set of custid from Sales.Orders table.
+SELECT custid, companyname
+FROM Sales.Customers AS C
+WHERE country = N'Spain'
+	AND EXISTS 
+		(SELECT * FROM Sales.Orders AS O
+		WHERE O.custid = C.custid);
+
+-- I want to display custid and companyname from Sales.Customers table
+-- I filter for rows where country = Spain
+-- and for each row, we check the custid from Sales.Customers table if the custid does NOT exist in the set of custid from Sales.Orders table.
+SELECT custid, companyname
+FROM Sales.Customers AS C
+WHERE country = N'Spain'
+	AND NOT EXISTS 
+		(SELECT * FROM Sales.Orders AS O
+		WHERE O.custid = C.custid);
+
+-- I want to display orderid, orderdate, empid, and custid
+-- for each row, I want to display the (max orderid from O2) which is less than the current orderid of the row in O1.
+-- So I query all rows from Sales.Orders table.
+SELECT orderid, orderdate, empid, custid,
+	(SELECT MAX(O2.orderid)
+	FROM Sales.Orders AS O2
+	WHERE O2.orderid < O1.orderid) AS prevorderid
+FROM Sales.Orders AS O1;
+
+-- I want to display orderid, orderdate, empid, and custid
+-- for each row, I want to display the (min orderid from O2) which is greater than the "current orderid of the row" in O1.
+-- So I query all rows from Sales.Orders table.
+SELECT orderid, orderdate, empid, custid,
+	(SELECT MIN(O2.orderid)
+	FROM Sales.Orders AS O2
+	WHERE O2.orderid > O1.orderid) AS next_orderid
+FROM Sales.Orders AS O1;
+
+
+-- Running Aggregates p.141, 169/442
+SELECT orderyear, qty
+FROM Sales.OrderTotalsByYear;
