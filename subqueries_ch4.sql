@@ -182,3 +182,101 @@ FROM Sales.Orders AS O1;
 -- Running Aggregates p.141, 169/442
 SELECT orderyear, qty
 FROM Sales.OrderTotalsByYear;
+
+
+-- I want to display orderyear qty,
+-- and runqty which is a subquery for each row, if the current rows O1.orderyear >= O2.orderyear
+-- we get the sum of the qty for the given orderyear
+-- I query results from Sales.OrderTotalsByYear
+-- I sort by orderyear ASC
+USE TSQL2012;
+SELECT orderyear, qty,
+	(SELECT SUM(O2.qty)
+	FROM Sales.OrderTotalsByYear AS O2
+	WHERE O2.orderyear <= O1.orderyear) AS runqty
+FROM Sales.OrderTotalsByYear AS O1
+ORDER BY orderyear;
+
+
+--Dealing with misbehaving subqueries
+
+-- I want to display custid, companyname from Sales.Customers table
+-- I want to filter looking at the custid of each row in Sales.Customers table if custid is found in the Sales.Orders table.
+SELECT custid, companyname
+FROM Sales.Customers
+WHERE custid NOT IN(SELECT O.custid 
+					FROM Sales.Orders AS O);
+-- running query after adding new row results in a empty set.
+
+-- In the Sales.Orders table with the following columns
+-- Insert 1 row with the following values.
+INSERT INTO Sales.Orders
+(custid, empid, orderdate, requireddate, shippeddate,shipperid,
+freight, shipname, shipaddress, shipcity, shipregion,
+shippostalcode, shipcountry)
+VALUES(NULL, 1, '20090212', '20090212', '20090212', 1, 123.00, N'ABC', N'abc', N'abc', N'ABC', N'ABC',  N'ABC')
+
+--Explicit declaration
+
+-- I want to display custid, companyname from Sales.Customers table
+-- I want to filter looking at the custid of each row in Sales.Customers table if custid is not found in the Sales.Orders table, and custid is not null.
+SELECT custid, companyname
+FROM Sales.Customers
+WHERE custid NOT IN(SELECT O.custid 
+					FROM Sales.Orders AS O
+					WHERE O.custid IS NOT NULL);
+
+--implicit declaration
+
+-- I want to display custid, companyname
+-- So I query rows from Sales.Customers table
+-- I filter for each row of Sales.Customers, check the current rows custid compared with custid found in Sales.Orders table
+-- if custid from Sales.Customers table is not in Sales.Orders return rows.
+SELECT custid, companyname
+FROM Sales.Customers AS C
+WHERE NOT EXISTS
+	(SELECT * 
+	FROM Sales.Orders AS O
+	WHERE O.custid = C.custid);
+
+--eliminate all rows from Sales.ORders table where custid is null.
+DELETE FROM Sales.Orders WHERE custid IS NULL;
+
+-- Subsitution errors in subquery column name
+
+--check if myshippers table exist
+--remove the table if already exists
+IF OBJECT_ID('Sales.Myshippers', 'U') IS NOT NULL
+	DROP TABLE Sales.MyShippers;
+
+-- create a table Sales.Myshippers 
+-- with columns shipper_id, companyname, phone, shipper_id is set to primary key;
+CREATE TABLE Sales.MyShippers
+(
+shipper_id	INT					NOT NULL,
+companyname NVARCHAR(40)		NOT NULL,
+phone		NVARCHAR(24)		NOT NULL,
+CONSTRAINT PK_Myshippers		PRIMARY KEY(shipper_id)
+);
+
+-- for table Sales.Myshippers
+-- I want to insert 3 values into the table
+INSERT INTO Sales.MyShippers(shipper_id, companyname, phone)
+	VALUES ( 1, N'Shipper GVSUA', N'(503) 555 - 0137'),
+			(2, N'Shipper ETYNR', N'(425)  555 - 0136'),
+			(3, N'Shipper ZHISN', N'(415)  555 - 0138');
+
+-- I want to display shipperid and companyname
+-- So I query results from Sales.Myshippers table
+-- I look at each row of shipper_id from Sales.Myshippers, 
+-- if shipper_id for current row is found in Sales.Orders table for custid 43
+-- return the filtered rows
+
+--query is incorrect should return shipper_id 2 and 3 only, shipper_id column does not existing in Sales.Orders table
+-- therefore the subquery returns the query of shipper_id from Sales.Myshippers table or outer query
+-- Sales.Orders instead has shipperid column.
+SELECT shipper_id, companyname
+FROM Sales.Myshippers
+WHERE shipper_id IN (SELECT shipper_id
+					FROM Sales.Orders
+					WHERE custid = 43);
