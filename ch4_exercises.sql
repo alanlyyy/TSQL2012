@@ -49,6 +49,18 @@ WHERE custid = (SELECT TOP(1) custid
 IF OBJECT_ID('dbo.temp_table', 'U') IS NOT NULL
 DROP TABLE dbo.temp_table;
 
+-- a better solution for problem 2
+
+-- I want to display custid, orderid, orderdate, and empid
+-- So I query all rows from Sales.Orders table
+-- I filter for each row of custid, if the custid contains the max number of orders 
+SELECT custid, orderid, orderdate, empid
+FROM Sales.Orders
+WHERE custid  IN (SELECT TOP (1)  WITH TIES  O.custid
+				 FROM Sales.Orders AS O
+				 GROUP BY O.custid
+				 ORDER BY COUNT(*) DESC);
+
 --page 147, 175/442 exercise 3.
 
 USE TSQL2012;
@@ -80,7 +92,7 @@ WHERE C.country NOT IN (SELECT H.country
 --5.
 -- I want to display custid, orderid, orderdate, empid
 -- I query all rows from Sales.Orders table
--- I filter each row of  O1.orderdate if O1.orderdate is (O2.orderdate, latest date = top(1), sorted by desc) for the current rows custid
+-- I filter each row of  O1.orderdate if O1.orderdate is (O2.orderdate, latest date = top(1), sorted by desc) for each rows custid
 -- Sort by custid ASC.
 USE TSQL2012;
 SELECT O1.custid,O1.orderid, O1.orderdate,O1.empid
@@ -144,6 +156,6 @@ SELECT C.custid, C.ordermonth,C.qty,
 		FROM Sales.CustOrders AS C2
 		WHERE C2.ordermonth <= C.ordermonth AND C2.custid = C.custid) AS runqty
 FROM Sales.CustOrders AS C
-ORDER BY custid ASC;
+ORDER BY custid,ordermonth ASC;
 
 --solutions 152, 180/442
