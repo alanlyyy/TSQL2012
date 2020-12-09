@@ -140,3 +140,76 @@ FROM C
 GROUP BY orderyear;
 
 --p.165, 193/442
+
+USE TSQL2012;
+
+-- create a variable empid with value of int ,3
+--C is a virtual table, that contains the columns orderyear, and custid 
+--rows from Sales.Orders table, filter for rows with empid = 3
+--I want to display orderyear, Count of unique custid,
+--query from virtual table C
+--display results by orderyear and total counts of unique custid for each year.
+DECLARE @empid AS INT = 3;
+
+WITH C AS
+(
+SELECT YEAR(orderdate) AS orderyear, custid
+FROM Sales.Orders
+WHERE empid = @empid
+)
+SELECT orderyear, COUNT(DISTINCT custid) AS numcusts
+FROM C 
+GROUP BY orderyear;
+
+
+-- declaring multiple CTE tables for query.
+
+-- C1 is a virtual table with columns orderyear and custid
+--extract rows from Sales.Orders table
+-- C2 is a virtual table with columns orderyear and numcusts(count of unique customers)
+-- querying rows from virtual table C1, displaying orderyear and ----- total counts of customers/orderyear
+-- I want to display orderyear, and num custs
+-- query rows from virtual table C2
+-- filter for rows where count of unique custs > 70.
+WITH C1 AS 
+(
+	SELECT YEAR(orderdate) AS orderyear, custid
+	FROM Sales.Orders
+),
+C2 AS
+(
+	SELECT orderyear, COUNT(DISTINCT custid) AS numcusts
+	FROM C1 
+	GROUP BY orderyear
+)
+SELECT orderyear, numcusts
+FROM C2
+WHERE numcusts > 70;
+
+
+-- Using multiple instances of CTE tables.
+
+--create a virtual table called yearly count, with the columns: orderyear, numcusts
+--rows queried from Sales.Orders table
+--Aggregate to display orderyear and total count of unique customer id/orderyear.
+--I want to display orderyear, current number of customers, prev year number of customers
+--and the growth of num customers in 1 year.
+-- So I query all rows from virtual table YearlyCount
+-- preserving yearlycount instance Cur and joining Yearly count instance Prv
+-- on current years orderyear and previous years order year.
+WITH YearlyCount AS 
+(
+SELECT YEAR(orderdate) AS orderyear,
+COUNT(DISTINCT custid) AS numcusts
+FROM Sales.Orders
+GROUP BY YEAR(orderdate)
+)
+SELECT Cur.orderyear, 
+		Cur.numcusts AS curnumcusts,
+		Prv.numcusts AS prvnumcusts,
+		Cur.numcusts - Prv.numcusts AS growth
+FROM YearlyCount AS Cur
+LEFT OUTER JOIN  YearlyCount AS Prv
+ON  Cur.orderyear = Prv.orderyear+1;
+
+--p.167 195/442
