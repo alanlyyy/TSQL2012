@@ -213,3 +213,42 @@ LEFT OUTER JOIN  YearlyCount AS Prv
 ON  Cur.orderyear = Prv.orderyear+1;
 
 --p.167 195/442
+
+
+-- recursive CTE
+
+--Union All combines the result set of 2 or more SELECT statements and allows duplicate values.
+USE TSQL2012;
+
+--Create virutal table EmpsCTE
+
+-- generate anchor member:
+-- --------------------------------------------
+-- return columns empid, mgrid, firstname, and last name 
+-- query from HR.Employees table
+-- filter for rows where empid = 2
+
+-- using the anchor member from the previous set:
+-- --------------------------------------------
+-- Take the current set of data and combine with next set.
+-- return columns empid, mgrid, firstname, and lastname from virtual table EmpsCTE
+-- joining Employees table with EmptsCTE table using key mgrid = empid
+-- EmpsCTE resultant grows for each invocation of join statement. When the resultant select statement returns empty set, recursion is finished.
+-- return columns empid, mgrid, firstname, lastname from EmpsCTE resulting set.
+WITH EmpsCTE AS
+(
+SELECT empid, mgrid, firstname, lastname
+FROM HR.Employees 
+WHERE empid =2
+
+UNION ALL
+
+SELECT C.empid, C.mgrid, C.firstname, C.lastname
+FROM EmpsCTE AS P
+JOIN HR.Employees AS C
+ON C.mgrid = P.empid
+)
+SELECT empid, mgrid, firstname,lastname
+FROM EmpsCTE;
+
+--169, (197,442)
