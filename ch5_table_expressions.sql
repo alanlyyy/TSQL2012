@@ -252,3 +252,132 @@ SELECT empid, mgrid, firstname,lastname
 FROM EmpsCTE;
 
 --169, (197,442)
+
+
+-- if  Sales.USACusts view already exist delete the view
+-- Create a reusable table expression called Sales.USACusts
+-- Return columns custid,companyname,contactname,contacttitle,address,
+-- city, region, postal code, country, phone, fax
+-- queried from Sales.Customers table
+-- filter for rows where country is USA
+USE TSQL2012;
+IF OBJECT_ID('Sales.USACusts') IS NOT NULL
+DROP VIEW Sales.USACusts;
+GO
+CREATE VIEW Sales.USACusts
+AS 
+SELECT 
+custid, companyname, contactname, contacttitle, address,
+city, region, postalcode, country, phone, fax
+FROM Sales.Customers
+WHERE country = N'USA';
+GO
+
+SELECT * FROM Sales.USACusts;
+
+--Querying from view, reusable table expression
+--sorting using outer query for presentation purposes.
+SELECT custid, companyname, region
+FROM Sales.USACusts
+ORDER BY region;
+
+
+-- Query fails because order by clause is invalid in views
+-- not valid to sort a relational table, no order in relational table.
+ALTER VIEW Sales.USACusts
+AS
+
+SELECT 
+	custid, companyname, contactname, contacttitle, address,
+	city, region, postalcode, country, phone, fax
+FROM Sales.Customers
+WHERE country = N'USA'
+ORDER BY region;
+GO
+
+--Query is a valid using order by, because we use top for filtering
+--however, if we dont call order by in outer query the returned query is not sorted.
+ALTER VIEW Sales.USACusts
+AS
+
+SELECT TOP(100) PERCENT
+	custid, companyname, contactname, contacttitle, address,
+	city, region, postalcode, country, phone, fax
+FROM Sales.Customers
+WHERE country = N'USA'
+ORDER BY region;
+GO
+
+--we dont call order by in outer query the returned query is not sorted.
+SELECT custid, companyname, region
+FROM Sales.USACusts
+
+--get definition of the view, text is not encrypted
+SELECT OBJECT_DEFINITION( OBJECT_ID('Sales.USACusts'));
+
+--encrypt the text of the view, only users with priviledges to see the view are able to.
+ALTER VIEW Sales.USACusts WITH ENCRYPTION
+AS
+
+SELECT 
+	custid, companyname, contactname, contacttitle, address,
+	city, region, postalcode, country, phone, fax
+FROM Sales.Customers
+WHERE country = N'USA'
+GO
+
+ALTER VIEW Sales.USACusts WITH SCHEMABINDING
+AS
+
+SELECT 
+	custid, companyname, contactname, contacttitle, address,
+	city, region, postalcode, country, phone, fax
+FROM Sales.Customers
+WHERE country = N'USA'
+GO
+
+--Schemebinding of the view Sales.USACusts to Sales.Customers table
+--prevents us from altering Sales.Customers table.
+ALTER TABLE Sales.Customers DROP COLUMN address;
+
+
+--insert dummy row into table Sales.USACusts
+INSERT INTO Sales.USACusts(
+	companyname, contactname, contacttitle, address,
+	city, region, postalcode, country, phone, fax)
+VALUES(
+N'Customer ABCDE', N'Contact ABCDE', N'TITLE ABCDE',N'ADDRESS ABCDE',
+N'London', NULL, N'12345', N'UK', N'012-3456789', N'012-3456789');
+
+
+-- row does not exist in the table, because record does not satisfy filter condition 
+-- of the query for the view. (country is not USA)
+SELECT custid, companyname, country
+FROM Sales.USACusts
+WHERE companyname = N'Customer ABCDE';
+
+--row exist in the table 
+SELECT custid, companyname, country
+FROM Sales.Customers
+WHERE companyname = N'Customer ABCDE';
+
+
+--delete the inserted record
+DELETE FROM Sales.Customers WHERE companyname = N'Customer ABCDE';
+
+
+--prevent modifications that conflict with the views filter using check option
+-- prevent column modifications using SCHEMABINDING.
+ALTER VIEW Sales.USACusts WITH SCHEMABINDING
+AS 
+
+SELECT 
+	custid,companyname, contactname, contacttitle, address,
+	city, region, postalcode, country, phone, fax
+
+FROM Sales.Customers
+WHERE country = N'USA'
+WITH CHECK OPTION;
+GO
+
+--p.175 203/442
