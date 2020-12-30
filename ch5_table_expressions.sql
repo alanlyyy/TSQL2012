@@ -380,4 +380,91 @@ WHERE country = N'USA'
 WITH CHECK OPTION;
 GO
 
+-- insertion fails with schemabinding+checkoption because the view has a constraint for country = USA.
+--the data we atr trying to insert has country = UK
 --p.175 203/442
+USE TSQL2012;
+INSERT INTO Sales.USACusts(
+companyname, contactname, contacttitle, address,
+	city, region, postalcode, country, phone, fax)
+VALUES(N'Customer FGHIj', N'Contact FGHIJ', N'Title FGHIJ',
+N'Address FGHIJ', N'London', NULL, N'12345', N'UK', N'012-3456789', 
+N'012-3456789');
+
+--clean up  delete Sales.USACusts and rows in Sales.Customers table where custid > 91.
+DELETE FROM Sales.Customers
+WHERE custid > 91;
+IF OBJECT_ID('Sales.USACusts') IS NOT NULL DROP VIEW Sales.USACusts;
+
+USE TSQL2012;
+
+--if dbo.GetCustOrders already exist, delete the table.
+IF OBJECT_ID('dbo.GetCustOrders') IS NOT NULL
+DROP FUNCTION dbo.GetCustOrders;
+
+--create a table parameterized view dbo.GetCustOrders which takes a parameterized value int
+--query returns all columns: orderid, custid, empid, orderdate, requireddate,
+--shippeddate, shipperid, freight, shipname,shipaddress, shipcity,
+-- shipregion, shippostalcode, shipcountry from SalesOrders table 
+-- filter rows where custid = input parameter cid.
+Go
+CREATE FUNCTION dbo.GetCustOrders
+(@cid AS INT) RETURNS TABLE
+AS 
+RETURN
+SELECT orderid, custid, empid, orderdate, requireddate,
+shippeddate, shipperid, freight, shipname,shipaddress, shipcity,
+shipregion, shippostalcode, shipcountry
+FROM Sales.Orders
+WHERE custid=@cid;
+GO
+
+--return columns orderid and custid
+--from the view dbo.GetCustOrders with the custid equal to 1.
+SELECT orderid, custid
+FROM dbo.GetCustOrders(1) AS O;
+
+--return orderid and custid columns from dbo.GetCustOrders with custid = 1
+--return  productid and qty column from Sales.OrderDetails  table
+--find intersection of both tables using the orderid key.
+SELECT O.orderid, O.custid, OD.productid, OD.qty
+FROM dbo.GetCustOrders(1) AS O
+JOIN Sales.OrderDetails AS OD
+ON O.orderid = OD.orderid;
+
+--delete GetCustOrders table
+IF OBJECT_ID('dbo.GetCustOrders') IS NOT NULL
+DROP FUNCTION dbo.GetCustOrders;
+
+--cross apply operation returns inner rows that do meet the condition.
+
+-- i want to display custid from Sales.Customers table
+-- display orderid and orderdate from table expression A
+-- table expression A, contains the top 3 rows for orderid,empid, orderdate, and requireddate from Sales.Orders table, 
+-- for each rows of Sales.Customers we look at each row of Sales.Orders custid = Sales.Customers custid
+-- sort the orderdate of table A from latest to earliest.
+SELECT C.custid, A.orderid, A.orderdate
+FROM Sales.Customers AS C
+CROSS APPLY 
+	(SELECT TOP (3) orderid, empid, orderdate, requireddate
+	FROM Sales.Orders AS O
+	WHERE O.custid = C.custid
+	ORDER BY orderdate DESC, orderid DESC) AS A;
+
+
+--Outer apply operation returns outer rows that do not meet the condition.
+--p.180 , (208/442)
+--return cols custid, orderid, and orderdate
+--query rows from Sales. Customers table
+--for each row of Sales.Customers table, (Compare with the table expression)
+--get 3 latest rows from Sales.Orders where the custid from Sales.Orders and Sales.Customers is equal.
+USE TSQL2012;
+SELECT C.custid, A.orderid, A.orderdate
+FROM Sales.Customers AS C
+OUTER APPLY
+(SELECT TOP(3)  orderid, empid, orderdate,requireddate
+FROM Sales.Orders AS O
+WHERE O.custid = C.custid
+ORDER BY orderdate DESC, orderid DESC) AS A;
+
+--182 , 210/442 SQL
