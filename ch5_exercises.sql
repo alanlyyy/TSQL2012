@@ -19,6 +19,11 @@ WHERE O1.orderdate = (SELECT MAX(O2.orderdate)
 					FROM Sales.Orders AS O2
 					WHERE O1.empid = O2.empid);
 
+--more elegant solution
+SELECT empid, MAX(orderdate) AS maxorderdate
+FROM Sales.Orders
+GROUP BY empid;
+
 
 --1-2.
 -- I want to display empid, maxorderdate, orderid and custid
@@ -61,6 +66,16 @@ FROM Sales.Orders
 WHERE (O1.row_num >=11) AND (O1.row_num < = 20);
 
 
+--Solution: alternative use a CTE 
+WITH OrdersRN AS 
+(
+SELECT orderid, orderdate, custid, empid,
+ROW_NuMBER() OVER(ORDER BY orderdate, orderid) AS rownum
+FROM Sales.Orders
+)
+SELECT * FROM OrdersRN WHERE rownum BETWEEN 11 AND 20;
+
+
 --3.
 SELECT * FROM HR.Employees;
 
@@ -100,7 +115,7 @@ DROP VIEW Sales.VEmpOrders;
 -- create a view called Sales.OrderSums
 -- return cols empid, year, and total qty
 
--- query from virtual table temp with cols: empid and orderdate from Sales.Orders, and qty from Sales.OrderDetails
+-- query cols: empid and orderdate from Sales.Orders, and qty from Sales.OrderDetails
 -- intersect tables on orderid from both tables
 
 --cluster table by empid and order year 
@@ -109,23 +124,19 @@ GO
 CREATE VIEW Sales.VEmpOrders
 AS
 
-SELECT temp.empid, YEAR(temp.orderdate) AS orderyear, SUM(temp.qty) AS qty
-FROM 
-
-(
-SELECT SO.empid, SO.orderdate, SOD.qty
+SELECT empid, YEAR(orderdate) AS orderyear, SUM(qty) AS qty
 FROM Sales.Orders AS SO
 INNER JOIN Sales.OrderDetails AS SOD
 ON SOD.orderid = SO.orderid 
-) AS temp
 
-GROUP BY empid, YEAR(temp.orderdate)
+GROUP BY empid, YEAR(orderdate)
 
 GO
 
 -- after creating view return output empid and orderyear asc
 SELECT * FROM Sales.VEmpOrders
 ORDER BY empid ASC, orderyear ASC;
+
 
 
 --4.2
@@ -147,3 +158,68 @@ ORDER BY empid ASC, orderyear ASC;
 
 
 --186, p.214,442 
+
+--drop inline tvf if already exists
+USE TSQL2012;
+IF OBJECT_ID('dbo.GetCustOrders') IS NOT NULL
+DROP FUNCTION dbo.GetCustOrders;
+
+--test inline tvf
+GO 
+CREATE FUNCTION dbo.GetCustOrders
+(@cid AS INT) RETURNS TABLE
+AS 
+RETURN
+SELECT orderid,custid, orderdate, requireddate,
+shippeddate, shipperid, freight, shipname, shipaddress, shipcity,
+shipregion, shippostalcode, shipcountry
+FROM Sales.Orders
+WHERE custid = @cid;
+GO
+-- query inline tvf, if custid = 1
+SELECT orderid, custid
+FROM dbo.GetCustOrders(1) AS O;
+
+--5-1
+SELECT * FROM Production.Products;
+
+-- drop dbo.TopProducts if inline table already exists
+USE TSQL2012;
+IF OBJECT_ID('dbo.TopProducts') IS NOT NULL
+DROP FUNCTION dbo.TopProducts;
+
+
+-- create inline tvf, dbo.TropProducts
+-- with parameters supplierid and num orders n
+--the table contains the top num orders, all columns from Production.Products
+--filter for supplierid = supid
+--order by largest unit price
+GO 
+CREATE FUNCTION dbo.TopProducts
+(@supid AS INT, @n AS INT) RETURNS TABLE
+
+AS 
+RETURN 
+SELECT TOP(@n) productid, productname, supplierid, categoryid, unitprice, discontinued
+FROM Production.Products
+WHERE supplierid = @supid 
+ORDER BY unitprice DESC;
+GO
+
+--grab all rows where supid =5 and get top 2 products with highest unit price.
+SELECT * FROM dbo.TopProducts(5,2);
+
+
+
+--5-2
+USE TSQL2012;
+
+-- I want to display columns supplierid, companyname from Production.Products table
+-- I want to display columns productid, productname, unitprice from virtual table az
+-- for each row in Production.Suppliers table, I apply the supplierid into virtual table az.
+-- The virtual table az is a table function that returns top 2 most expensive products for given supplierid.
+SELECT PP.supplierid, PP.companyname, az.productid, az.productname, az.unitprice
+FROM Production.Suppliers AS PP
+CROSS APPLY
+	(SELECT productid, productname, supplierid, categoryid, unitprice, discontinued
+	FROM dbo.TopProducts(PP.supplierid,2)) AS az;
